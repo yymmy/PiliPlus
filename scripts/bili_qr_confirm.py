@@ -21,12 +21,7 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 QRCODE_CONFIRM_API = "https://passport.bilibili.com/x/passport-tv-login/h5/qrcode/confirm"
-WEB_QRCODE_CONFIRM_APIS = [
-    # web 登录二维码确认（优先尝试 web 端路径）
-    "https://passport.bilibili.com/x/passport-login/web/qrcode/confirm",
-    # 兼容部分历史实现
-    "https://passport.bilibili.com/x/passport-login/h5/qrcode/confirm",
-]
+WEB_QRCODE_CONFIRM_API = "https://passport.bilibili.com/x/passport-login/h5/qrcode/confirm"
 DEFAULT_CRED_FILE = "bili_credentials.json"
 
 
@@ -44,13 +39,6 @@ def parse_json_or_raise(resp: requests.Response, api_name: str) -> dict[str, Any
             f"{api_name} 返回非 JSON: HTTP {resp.status_code}, "
             f"Content-Type={content_type}, Body前400={body_preview}"
         )
-
-
-def parse_json_or_none(resp: requests.Response) -> dict[str, Any] | None:
-    try:
-        return resp.json()
-    except Exception:
-        return None
 
 
 def load_credentials(path: Path) -> dict[str, Any]:
@@ -136,20 +124,7 @@ def confirm_qr_login(qr_url_or_code: str, cred_file: Path, timeout: int = 20) ->
             "csrf": csrf,
             "source": "main-fe-header",
         }
-        errors: list[str] = []
-        for api in WEB_QRCODE_CONFIRM_APIS:
-            resp = session.post(api, data=payload, timeout=timeout)
-            data = parse_json_or_none(resp)
-            if data is not None:
-                return data
-
-            content_type = resp.headers.get("content-type", "")
-            body_preview = resp.text[:200].replace("\n", "\\n")
-            errors.append(
-                f"{api} -> HTTP {resp.status_code}, Content-Type={content_type}, Body前200={body_preview}"
-            )
-
-        raise ConfirmError("web 二维码确认接口均返回非 JSON:\n" + "\n".join(errors))
+        resp = session.post(WEB_QRCODE_CONFIRM_API, data=payload, timeout=timeout)
     else:
         # TV 端 auth_code 场景
         auth_code = extract_auth_code(raw)
