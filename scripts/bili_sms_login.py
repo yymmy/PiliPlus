@@ -28,6 +28,12 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
+# 默认值与 PiliPlus/common/constants.dart 保持一致。
+# 重要：通过某组 APP_KEY/APP_SEC 获取的 access_token，后续 sign 接口必须继续使用同一组。
+DEFAULT_APP_KEY = "dfca71928277209b"
+DEFAULT_APP_SEC = "b5475a8825547a4fc26c7d518eaaa02e"
+APP_KEY = os.getenv("BILI_APP_KEY", DEFAULT_APP_KEY)
+APP_SEC = os.getenv("BILI_APP_SEC", DEFAULT_APP_SEC)
 APP_KEY = "dfca71928277209b"
 APP_SEC = "b5475a8825547a4fc26c7d518eaaa02e"
 
