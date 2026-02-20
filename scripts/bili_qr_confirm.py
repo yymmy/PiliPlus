@@ -21,7 +21,6 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 QRCODE_CONFIRM_API = "https://passport.bilibili.com/x/passport-tv-login/h5/qrcode/confirm"
-WEB_QRCODE_CONFIRM_API = "https://passport.bilibili.com/x/passport-login/h5/qrcode/confirm"
 DEFAULT_CRED_FILE = "bili_credentials.json"
 
 
@@ -71,15 +70,6 @@ def extract_auth_code(qr_url_or_code: str) -> str:
     raise ConfirmError("未在链接 query 中找到 auth_code/authCode/code")
 
 
-def extract_qrcode_key(qr_url: str) -> str:
-    parsed = urlparse(qr_url.strip())
-    query = parse_qs(parsed.query)
-    qrcode_key = (query.get("qrcode_key") or [""])[0].strip()
-    if not qrcode_key:
-        raise ConfirmError("未在链接 query 中找到 qrcode_key")
-    return qrcode_key
-
-
 def build_session_from_credentials(cred: dict[str, Any]) -> tuple[requests.Session, str]:
     cookies = cred.get("cookies") or {}
     if not isinstance(cookies, dict) or not cookies:
@@ -114,27 +104,15 @@ def build_session_from_credentials(cred: dict[str, Any]) -> tuple[requests.Sessi
 def confirm_qr_login(qr_url_or_code: str, cred_file: Path, timeout: int = 20) -> dict[str, Any]:
     cred = load_credentials(cred_file)
     session, csrf = build_session_from_credentials(cred)
+    auth_code = extract_auth_code(qr_url_or_code)
 
-    raw = qr_url_or_code.strip()
-    if raw.startswith(("http://", "https://")) and "qrcode_key=" in raw:
-        # Web 扫码链接（如 account.bilibili.com/.../scan-web?...&qrcode_key=xxx）
-        qrcode_key = extract_qrcode_key(raw)
-        payload = {
-            "qrcode_key": qrcode_key,
-            "csrf": csrf,
-            "source": "main-fe-header",
-        }
-        resp = session.post(WEB_QRCODE_CONFIRM_API, data=payload, timeout=timeout)
-    else:
-        # TV 端 auth_code 场景
-        auth_code = extract_auth_code(raw)
-        payload = {
-            "auth_code": auth_code,
-            "csrf": csrf,
-            "scanning_type": "1",
-        }
-        resp = session.post(QRCODE_CONFIRM_API, data=payload, timeout=timeout)
+    payload = {
+        "auth_code": auth_code,
+        "csrf": csrf,
+        "scanning_type": "1",
+    }
 
+    resp = session.post(QRCODE_CONFIRM_API, data=payload, timeout=timeout)
     data = parse_json_or_raise(resp, "qrcodeConfirm")
     return data
 
